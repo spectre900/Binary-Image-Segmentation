@@ -79,5 +79,6 @@ int main()
 {
     EdmondKarp ek = EdmondKarp();
     ek.readInput();
-    cout << ek.findMaxFlow();
+    ek.findMaxFlow();
+    ek.findObj();
 }

@@ -16,6 +16,7 @@ protected:
 public:
     Graph()
     {
+        freopen("data.txt", "r", stdin);
         maxFlow = 0;
         cin >> V >> E;
         cin >> source >> sink;
@@ -29,7 +30,6 @@ public:
         {
             int u, v, w;
             cin >> u >> v >> w;
-            u--, v--;
 
             if (adjList[u].find(v) == adjList[u].end())
             {
@@ -39,6 +39,40 @@ public:
             if (adjList[v].find(u) == adjList[v].end())
             {
                 adjList[v][u] = 0;
+            }
+        }
+    }
+
+    void findObj()
+    {
+        queue<int> q;
+        vector<int> visited(V, false);
+
+        q.push(source);
+        visited[source] = true;
+
+        while (!q.empty())
+        {
+            int u = q.front();
+            q.pop();
+
+            for (pair<int, int> p : adjList[u])
+            {
+                int v = p.first;
+                int w = p.second;
+                if (!visited[v] and w)
+                {
+                    visited[v] = true;
+                    q.push(v);
+                }
+            }
+        }
+
+        for (int i = 0; i < visited.size(); i++)
+        {
+            if (i != source && visited[i])
+            {
+                cout << i << " ";
             }
         }
     }

@@ -51,5 +51,6 @@ int main()
 {
     FordFulkerson ff = FordFulkerson();
     ff.readInput();
-    cout << ff.findMaxFlow();
+    ff.findMaxFlow();
+    ff.findObj();
 }

@@ -55,5 +55,6 @@ int main()
 {
     Scaling s = Scaling();
     s.readInput();
-    cout << s.findMaxFlow();
+    s.findMaxFlow();
+    s.findObj();
 }
