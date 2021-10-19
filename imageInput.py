@@ -27,7 +27,7 @@ def plantSeed(image):
         else:
             color, code = BKGCOLOR, BKGCODE
         cv2.circle(image, (x, y), radius, color, thickness)
-        cv2.circle(seeds, (x // SF, y // SF), radius // SF, code, thickness)
+        cv2.circle(seeds, (x, y), radius, code, thickness)
 
     def onMouse(event, x, y, flags, pixelType):
         global drawing
@@ -55,7 +55,6 @@ def plantSeed(image):
     
     seeds = np.zeros(image.shape, dtype="uint8")
     image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-    image = cv2.resize(image, (0, 0), fx=SF, fy=SF)
 
     radius = 5
     thickness = -1
@@ -64,17 +63,17 @@ def plantSeed(image):
 
     paintSeeds(OBJ)
     paintSeeds(BKG)
-    
-    return seeds, image  
+
+    return seeds ,image  
 
 def imageInput(imagefile, size=(60, 60)):
 
     pathname = os.path.splitext(imagefile)[0]
     image = cv2.imread(imagefile, cv2.IMREAD_GRAYSCALE)
     sfx, sfy = image.shape[0]/60, image.shape[1]/60
-    image = cv2.resize(image, size)
     seeds, _ = plantSeed(image)
-    
+    seeds = cv2.resize(seeds, size)
+    image = cv2.resize(image, size) 
     return (sfx, sfy), image, seeds
 
 def parseArgs():
