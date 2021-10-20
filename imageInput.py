@@ -1,194 +1,215 @@
 import os
 import cv2
+import time
 import argparse
 import subprocess
 import numpy as np
 
-OBJ, BKG = "OBJ", "BKG"
-OBJCODE, BKGCODE = 1, 2
-OBJCOLOR, BKGCOLOR = (0, 0, 255), (0, 255, 0)
+FRG, BKG = "FRG", "BKG"
+FRGCODE, BKGCODE = 1, 2
+FRGCOLOR, BKGCOLOR = (0, 0, 255), (0, 255, 0)
 
-SF = 10
 
-def show_image(image):
+class ImageProcess:
+    def __init__(self):
 
-    windowname = "Segmentation"
-    cv2.namedWindow(windowname, cv2.WINDOW_NORMAL)
-    cv2.startWindowThread()
-    cv2.imshow(windowname, image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-    
-def plantSeed(image):
+        self.radius = 5
+        self.thickness = -1
+        self.drawing = False
 
-    def drawLines(x, y, pixelType):
-        if pixelType == OBJ:
-            color, code = OBJCOLOR, OBJCODE
+    def drawLines(self, x, y, pixelType):
+
+        if pixelType == FRG:
+            color, code = FRGCOLOR, FRGCODE
         else:
             color, code = BKGCOLOR, BKGCODE
-        cv2.circle(image, (x, y), radius, color, thickness)
-        cv2.circle(seeds, (x, y), radius, code, thickness)
+        cv2.circle(self.image, (x, y), self.radius, color, self.thickness)
+        cv2.circle(self.seeds, (x, y), self.radius, code, self.thickness)
 
-    def onMouse(event, x, y, flags, pixelType):
-        global drawing
+    def onMouse(self, event, x, y, flags, pixelType):
+
         if event == cv2.EVENT_LBUTTONDOWN:
-            drawing = True
-            drawLines(x, y, pixelType)
-        elif event == cv2.EVENT_MOUSEMOVE and drawing:
-            drawLines(x, y, pixelType)
+            self.drawing = True
+            self.drawLines(x, y, pixelType)
+        elif event == cv2.EVENT_MOUSEMOVE and self.drawing:
+            self.drawLines(x, y, pixelType)
         elif event == cv2.EVENT_LBUTTONUP:
-            drawing = False
+            self.drawing = False
 
-    def paintSeeds(pixelType):
+    def paintSeeds(self, pixelType):
 
-        print ("Planting", pixelType, "seeds")
-        global drawing
-        drawing = False
+        print("Planting", pixelType, "seeds")
+        self.drawing = False
         windowname = "Plant " + pixelType + " seeds"
         cv2.namedWindow(windowname, cv2.WINDOW_AUTOSIZE)
-        cv2.setMouseCallback(windowname, onMouse, pixelType)
-        while (1):
-            cv2.imshow(windowname, image)
+        cv2.setMouseCallback(windowname, self.onMouse, pixelType)
+        while 1:
+            cv2.imshow(windowname, self.image)
             if cv2.waitKey(1) & 0xFF == 27:
                 break
         cv2.destroyAllWindows()
-    
-    seeds = np.zeros(image.shape, dtype="uint8")
-    image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
 
-    radius = 5
-    thickness = -1
-    global drawing
-    drawing = False
+    def imageInput(self, imagefile, size):
 
-    paintSeeds(OBJ)
-    paintSeeds(BKG)
+        pathname = os.path.splitext(imagefile)[0]
+        imageOrg = cv2.imread(imagefile, cv2.IMREAD_GRAYSCALE)
 
-    return seeds ,image  
+        self.image = cv2.cvtColor(imageOrg, cv2.COLOR_GRAY2RGB)
+        self.seeds = np.zeros(imageOrg.shape, dtype="uint8")
 
-def imageInput(imagefile, size=(60, 60)):
+        sfx, sfy = imageOrg.shape[0] / size[0], imageOrg.shape[1] / size[1]
 
-    pathname = os.path.splitext(imagefile)[0]
-    image = cv2.imread(imagefile, cv2.IMREAD_GRAYSCALE)
-    sfx, sfy = image.shape[0]/60, image.shape[1]/60
-    seeds, _ = plantSeed(image)
-    seeds = cv2.resize(seeds, size)
-    image = cv2.resize(image, size) 
-    return (sfx, sfy), image, seeds
+        self.paintSeeds(FRG)
+        self.paintSeeds(BKG)
+
+        self.seeds = cv2.resize(self.seeds, size)
+
+        return (sfx, sfy), cv2.resize(imageOrg, size), self.seeds
+
+
+class ImageSegment:
+    def __init__(self, image, seeds):
+
+        self.edgeList = []
+        self.factor = 1000
+        self.image = image
+        self.seeds = seeds
+        self.radius = 5
+        self.thickness = -1
+
+    def similarity(self, x, y):
+
+        x = int(x)
+        y = int(y)
+        diff = abs(x - y) / 255
+        sim = 1 - diff
+        return sim
+
+    def convertToInt(self, value):
+        return int(value * self.factor)
+
+    def constructGraph(self):
+
+        n = self.seeds.shape[0]
+        m = self.seeds.shape[1]
+
+        source = n * m
+        sink = n * m + 1
+
+        avgFrg = 0
+        avgBkg = 0
+        frgCount = 0
+        bkgCount = 0
+
+        for i in range(n):
+            for j in range(m):
+                if self.seeds[i][j] == FRGCODE:
+                    frgCount += 1
+                    avgFrg += image[i][j]
+                elif self.seeds[i][j] == BKGCODE:
+                    bkgCount += 1
+                    avgBkg += image[i][j]
+
+        avgBkg /= bkgCount
+        avgFrg /= frgCount
+
+        for i in range(n):
+            for j in range(m):
+
+                ai = (
+                    self.similarity(self.image[i][j], avgFrg)
+                    + (1 - self.similarity(self.image[i][j], avgBkg))
+                ) / 2
+                bi = 1 - ai
+
+                self.edgeList.append([source, i * m + j, ai])
+                self.edgeList.append([i * m + j, sink, bi])
+
+                if j + 1 < m:
+                    penalty = self.similarity(self.image[i][j], self.image[i][j + 1])
+                    self.edgeList.append([i * m + j, i * m + j + 1, penalty])
+                if i + 1 < n:
+                    penalty = self.similarity(self.image[i][j], self.image[i + 1][j])
+                    self.edgeList.append([i * m + j, (i + 1) * m + j, penalty])
+                if j > 0:
+                    penalty = self.similarity(self.image[i][j], self.image[i][j - 1])
+                    self.edgeList.append([i * m + j, i * m + j - 1, penalty])
+                if i > 0:
+                    penalty = self.similarity(self.image[i][j], self.image[i - 1][j])
+                    self.edgeList.append([i * m + j, (i - 1) * m + j, penalty])
+
+    def writeData(self, fileName):
+
+        file = open(fileName, "w")
+
+        n = self.seeds.shape[0]
+        m = self.seeds.shape[1]
+
+        source = n * m
+        sink = n * m + 1
+
+        v = n * m + 2
+        e = len(self.edgeList)
+
+        file.write(str(v) + " " + str(e) + "\n")
+        file.write(str(source) + " " + str(sink) + "\n")
+
+        for edge in self.edgeList:
+            [u, v, weight] = edge
+            text = str(u) + " " + str(v) + " " + str(self.convertToInt(weight)) + "\n"
+            file.write(text)
+
+        file.close()
+
+    def getForeground(self, algo="fordFulkerson"):
+
+        os.system("g++ -I ./ " + algo + ".cpp")
+        process = subprocess.Popen(["./a.out"], stdout=subprocess.PIPE)
+        dataBytes = process.communicate()[0]
+        dataStr = dataBytes.decode("utf-8")
+        genData = list(dataStr.split(" "))
+        genData.pop()
+
+        return algo, list(map(int, genData))
+
+    def displayResults(self, sf, size, imagefile):
+
+        algos = ["fordFulkerson", "edmondKarp", "scaling"]
+        start = time.time()
+        algo, frg = self.getForeground(algos[0])
+        end = time.time()
+
+        image = cv2.imread(imagefile)
+
+        for pixel in frg:
+            i = int((pixel // size[0]) * sf[0])
+            j = int((pixel % size[1]) * sf[1])
+            cv2.circle(image, (j, i), self.radius, FRGCOLOR, self.thickness)
+
+        cv2.imshow("Segmentation using " + algo, image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+        runtime = end - start
+        print("Runtime:", round(runtime, 5), "Secs")
+
 
 def parseArgs():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("imagefile")
-    parser.add_argument("--size", "-s", 
-                        default=60, type=int,
-                        help="Defaults to 60x60")
+    parser.add_argument("--size", "-s", default=60, type=int, help="Defaults to 60x60")
     return parser.parse_args()
 
-def similarity(x, y):
-
-    x = int(x)
-    y = int(y)
-
-    diff = abs(x-y) / 255
-    sim = 1 - diff
-
-    return sim
-
-def convertToInt(value):
-    return int(value*1000)
-
-def constructGraph(image, seeds):
-
-    edgeList = []
-    n = seeds.shape[0]
-    m = seeds.shape[1]
-
-    source = n*m
-    sink = n*m+1
-
-    avgObj = 0
-    avgBkg = 0
-    objCount = 0
-    bkgCount = 0
-
-    for i in range(n):
-        for j in range(m):
-            if seeds[i][j] == OBJCODE:
-                objCount += 1
-                avgObj += image[i][j]
-            elif seeds[i][j] ==  BKGCODE:
-                bkgCount += 1
-                avgBkg += image[i][j]
-    
-    avgBkg /= bkgCount  #ai
-    avgObj /= objCount  #bi
-
-    for i in range(n):
-        for j in range(m):
-            
-            ai = (similarity(image[i][j], avgObj) + (1 - similarity(image[i][j], avgBkg)) ) / 2
-            bi = 1 - ai
-
-            edgeList.append([source, i*m + j, ai])
-            edgeList.append([i*m + j, sink, bi])
-
-            if j+1 < m:
-                penalty = similarity(image[i][j], image[i][j+1])
-                edgeList.append([i*m + j, i*m + j + 1, penalty])
-            if i+1 < n:
-                penalty = similarity(image[i][j], image[i+1][j])
-                edgeList.append([i*m + j, (i+1)*m + j, penalty])
-            if j > 0:
-                penalty = similarity(image[i][j], image[i][j-1])
-                edgeList.append([i*m + j, i*m + j - 1, penalty])
-            if i > 0:
-                penalty = similarity(image[i][j], image[i-1][j])
-                edgeList.append([i*m + j, (i-1)*m + j, penalty])
-    
-    file = open('data.txt', 'w')
-
-    v = n*m + 2
-    e = len(edgeList)
-    file.write(str(v) + ' ' + str(e) + '\n')
-    file.write(str(source) + ' ' + str(sink) + '\n')
-
-    for edge in edgeList:
-        [u, v, weight] = edge
-        text = str(u) + ' ' + str(v) + ' ' + str(convertToInt(weight)) + '\n'
-        file.write(text)
-
-    file.close()
-
-def getObj():
-    
-    os.system('g++ -I ./ fordFulkerson.cpp')
-    process = subprocess.Popen(['./a.out'], stdout=subprocess.PIPE)
-    dataBytes = process.communicate()[0]
-    dataStr   = dataBytes.decode('utf-8')
-    genData = list(dataStr.split(' '))
-    genData.pop()
-
-    return list(map(int, genData))
 
 if __name__ == "__main__":
 
     args = parseArgs()
-    sf, image, seeds = imageInput(args.imagefile, (args.size, args.size))
 
-    constructGraph(image, seeds)
+    imageProcess = ImageProcess()
+    sf, image, seeds = imageProcess.imageInput(args.imagefile, (args.size, args.size))
 
-    obj = getObj()
-
-    image = cv2.imread(args.imagefile)
-
-    for pixel in obj:
-        i = int((pixel//60)*sf[0])
-        j = int((pixel%60)*sf[1])
-        cv2.circle(image, (j, i), 5, (0, 0, 255), -1)
-    
-    print(len(obj))
-    
-    cv2.imshow('Output', image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    imageSegment = ImageSegment(image, seeds)
+    imageSegment.constructGraph()
+    imageSegment.writeData("data.txt")
+    imageSegment.displayResults(sf, (args.size, args.size), args.imagefile)

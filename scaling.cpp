@@ -33,7 +33,7 @@ public:
 
     int findMaxFlow()
     {
-        int cutoff = INT_MAX;
+        int cutoff = 1000;
         while (cutoff)
         {
             int flow = dfs(source, cutoff);
