@@ -168,16 +168,16 @@ class ImageSegment:
         dataBytes = process.communicate()[0]
         dataStr = dataBytes.decode("utf-8")
         genData = list(dataStr.split(" "))
+
+        runtime = float(genData[-1])
         genData.pop()
 
-        return algo, list(map(int, genData))
+        return algo, list(map(int, genData)), runtime
 
     def displayResults(self, sf, size, imagefile):
 
-        algos = ["fordFulkerson", "edmondKarp", "scaling"]
-        start = time.time()
-        algo, frg = self.getForeground(algos[0])
-        end = time.time()
+        algos = ["fordFulkerson", "edmondKarp", "scaling", "dinic"]
+        algo, frg, runtime = self.getForeground(algos[3])
 
         image = cv2.imread(imagefile)
 
@@ -190,8 +190,7 @@ class ImageSegment:
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-        runtime = end - start
-        print("Runtime:", round(runtime, 5), "Secs")
+        print("Maxflow Runtime:", round(runtime, 5), "Secs")
 
 
 def parseArgs():

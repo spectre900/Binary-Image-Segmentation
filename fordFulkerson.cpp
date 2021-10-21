@@ -51,6 +51,13 @@ int main()
 {
     FordFulkerson ff = FordFulkerson();
     ff.readInput();
+
+    clock_t start, end;
+    start = clock();
     ff.findMaxFlow();
-    ff.findObj();
+    ff.findForeGround();
+    end = clock();
+
+    double duration = double(end - start) / double(CLOCKS_PER_SEC);
+    cout << duration;
 }

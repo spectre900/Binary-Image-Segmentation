@@ -79,6 +79,13 @@ int main()
 {
     EdmondKarp ek = EdmondKarp();
     ek.readInput();
+
+    clock_t start, end;
+    start = clock();
     ek.findMaxFlow();
-    ek.findObj();
+    ek.findForeGround();
+    end = clock();
+
+    double duration = double(end - start) / double(CLOCKS_PER_SEC);
+    cout << duration;
 }

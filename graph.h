@@ -43,7 +43,7 @@ public:
         }
     }
 
-    void findObj()
+    void findForeGround()
     {
         queue<int> q;
         vector<int> visited(V, false);

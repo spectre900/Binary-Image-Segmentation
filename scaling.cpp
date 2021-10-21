@@ -55,6 +55,13 @@ int main()
 {
     Scaling s = Scaling();
     s.readInput();
+
+    clock_t start, end;
+    start = clock();
     s.findMaxFlow();
-    s.findObj();
+    s.findForeGround();
+    end = clock();
+
+    double duration = double(end - start) / double(CLOCKS_PER_SEC);
+    cout << duration;
 }
