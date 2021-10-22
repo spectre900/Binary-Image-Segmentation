@@ -177,28 +177,55 @@ class ImageSegment:
     def displayResults(self, sf, size, imagefile):
 
         algos = ["fordFulkerson", "edmondKarp", "scaling", "dinic"]
-        algo, frg, runtime = self.getForeground(algos[3])
+
+        subprocess.Popen(["mkdir", "-p", "Results"])
+
+        file = open("./Results/results.txt", "w")
 
         image = cv2.imread(imagefile)
+        cv2.imwrite("./Results/image.jpg", image)
 
-        for pixel in frg:
-            i = int((pixel // size[0]) * sf[0])
-            j = int((pixel % size[1]) * sf[1])
-            cv2.circle(image, (j, i), self.radius, FRGCOLOR, self.thickness)
+        for algo in algos:
+            algo, frg, runtime = self.getForeground(algo)
 
-        cv2.imshow("Segmentation using " + algo, image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+            image = cv2.imread(imagefile)
 
-        print("Maxflow Runtime:", round(runtime, 5), "Secs")
+            for pixel in frg:
+                i = int((pixel // size[0]) * sf[0])
+                j = int((pixel % size[1]) * sf[1])
+                cv2.circle(image, (j, i), self.radius, FRGCOLOR, self.thickness)
+
+            cv2.imshow("Segmentation using " + algo, image)
+            cv2.imwrite("./Results/" + str(algo) + ".jpg", image)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+
+            print(
+                "Maxflow Runtime using " + str(algo) + ": ", round(runtime, 5), "Secs"
+            )
+
+            file.write(str(round(runtime, 5)) + "\n")
+
+        file.close()
+
+        subprocess.Popen(["python3", "gui2.py"])
 
 
 def parseArgs():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("imagefile")
     parser.add_argument("--size", "-s", default=60, type=int, help="Defaults to 60x60")
     return parser.parse_args()
+
+
+def getFilename():
+
+    process = subprocess.Popen(["python3", "gui1.py"], stdout=subprocess.PIPE)
+    dataBytes = process.communicate()[0]
+    dataStr = dataBytes.decode("utf-8")
+    filename = dataStr.strip()
+
+    return filename
 
 
 if __name__ == "__main__":
@@ -206,9 +233,12 @@ if __name__ == "__main__":
     args = parseArgs()
 
     imageProcess = ImageProcess()
-    sf, image, seeds = imageProcess.imageInput(args.imagefile, (args.size, args.size))
+
+    imagefile = getFilename()
+
+    sf, image, seeds = imageProcess.imageInput(imagefile, (args.size, args.size))
 
     imageSegment = ImageSegment(image, seeds)
     imageSegment.constructGraph()
     imageSegment.writeData("data.txt")
-    imageSegment.displayResults(sf, (args.size, args.size), args.imagefile)
+    imageSegment.displayResults(sf, (args.size, args.size), imagefile)
