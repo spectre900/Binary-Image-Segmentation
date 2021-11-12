@@ -52,7 +52,7 @@ def displayOutputInCanvas():
         cv2.imread("./Results/edmondKarp.jpg"),
         cv2.imread("./Results/scaling.jpg"),
         cv2.imread("./Results/dinic.jpg"),
-        cv2.imread("./Results/image.jpg"),
+        cv2.imread("./Results/plot.jpg"),
     ]
 
     titleList = [

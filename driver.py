@@ -1,9 +1,11 @@
 import os
 import cv2
 import time
+import shutil
 import argparse
 import subprocess
 import numpy as np
+import matplotlib.pyplot as plt
 
 FRG, BKG = "FRG", "BKG"
 FRGCODE, BKGCODE = 1, 2
@@ -52,9 +54,9 @@ class ImageProcess:
     def imageInput(self, imagefile, size):
 
         pathname = os.path.splitext(imagefile)[0]
-        imageOrg = cv2.imread(imagefile, cv2.IMREAD_GRAYSCALE)
 
-        self.image = cv2.cvtColor(imageOrg, cv2.COLOR_GRAY2RGB)
+        self.image = cv2.imread(imagefile)
+        imageOrg = cv2.cvtColor(self.image, cv2.COLOR_BGR2GRAY)
         self.seeds = np.zeros(imageOrg.shape, dtype="uint8")
 
         sfx, sfy = imageOrg.shape[0] / size[0], imageOrg.shape[1] / size[1]
@@ -174,11 +176,22 @@ class ImageSegment:
 
         return algo, list(map(int, genData)), runtime
 
+    def createBarPlot(self, algos, runtimes):
+        plt.bar(algos, runtimes, width = 0.4)
+        plt.xlabel('Algorithms used')
+        plt.ylabel('Runtime')
+        plt.title('Execution times of different algorithms for Binary Image Segmentation')
+        plt.savefig('./Results/plot.jpg')
+
     def displayResults(self, sf, size, imagefile):
 
         algos = ["fordFulkerson", "edmondKarp", "scaling", "dinic"]
+        runtimes = []
 
-        subprocess.Popen(["mkdir", "-p", "Results"])
+        directory = './Results'
+        if os.path.exists(directory):
+            shutil.rmtree(directory)
+        os.makedirs(directory)
 
         file = open("./Results/results.txt", "w")
 
@@ -205,9 +218,10 @@ class ImageSegment:
             )
 
             file.write(str(round(runtime, 5)) + "\n")
+            runtimes.append(runtime)
 
         file.close()
-
+        self.createBarPlot(algos, runtimes)
         subprocess.Popen(["python3", "gui2.py"])
 
 
