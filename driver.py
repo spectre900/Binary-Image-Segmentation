@@ -66,7 +66,7 @@ class ImageProcess:
 
         self.seeds = cv2.resize(self.seeds, size)
 
-        return (sfx, sfy), cv2.resize(imageOrg, size), self.seeds
+        return (sfx, sfy), cv2.resize(cv2.imread(imagefile), size), self.seeds 
 
 
 class ImageSegment:
@@ -81,10 +81,14 @@ class ImageSegment:
 
     def similarity(self, x, y):
 
-        x = int(x)
-        y = int(y)
-        diff = abs(x - y) / 255
-        sim = 1 - diff
+        sim = 0
+        for i in range(3):
+            X = int(x[i])
+            Y = int(y[i])
+            diff = abs(X - Y) / 255
+            sim += 1 - diff
+        sim /= 3
+
         return sim
 
     def convertToInt(self, value):
@@ -98,31 +102,38 @@ class ImageSegment:
         source = n * m
         sink = n * m + 1
 
-        avgFrg = 0
-        avgBkg = 0
-        frgCount = 0
-        bkgCount = 0
+        frgSeeds = []
+        bkgSeeds = []
 
         for i in range(n):
             for j in range(m):
                 if self.seeds[i][j] == FRGCODE:
-                    frgCount += 1
-                    avgFrg += image[i][j]
+                    frgSeeds.append(self.image[i][j])
                 elif self.seeds[i][j] == BKGCODE:
-                    bkgCount += 1
-                    avgBkg += image[i][j]
-
-        avgBkg /= bkgCount
-        avgFrg /= frgCount
+                    bkgSeeds.append(self.image[i][j])
 
         for i in range(n):
             for j in range(m):
 
-                ai = (
-                    self.similarity(self.image[i][j], avgFrg)
-                    + (1 - self.similarity(self.image[i][j], avgBkg))
-                ) / 2
+                ai = 0
+                ai1 = ai2 = 0
+                for seed in frgSeeds:
+                    ai1 += (
+                        self.similarity(self.image[i][j], seed)
+                    )
+                ai1 /= len(frgSeeds)
+
+                for seed in bkgSeeds:
+                    ai2 += (
+                        1 - self.similarity(self.image[i][j], seed)
+                    )
+                ai2 /= len(bkgSeeds)
+
+                ai = (ai1 + ai2) / 2
                 bi = 1 - ai
+
+                if (i + j) % 10 == 0:
+                    print(ai, bi)
 
                 self.edgeList.append([source, i * m + j, ai])
                 self.edgeList.append([i * m + j, sink, bi])
