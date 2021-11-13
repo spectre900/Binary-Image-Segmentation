@@ -132,9 +132,6 @@ class ImageSegment:
                 ai = (ai1 + ai2) / 2
                 bi = 1 - ai
 
-                if (i + j) % 10 == 0:
-                    print(ai, bi)
-
                 self.edgeList.append([source, i * m + j, ai])
                 self.edgeList.append([i * m + j, sink, bi])
 
