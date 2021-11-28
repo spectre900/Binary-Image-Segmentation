@@ -10,7 +10,7 @@ Max-Flow/ Min-Cut algorithms, an integral part of the greedy algorithmic paradig
 --> Browse the target image using the GUI that pops up.  
 --> Left click on a few foreground pixels to provide the foregroud seeds in the displayed image. Press 'Esc' button when done.  
 --> Left click on a few background pixels to provide the background seeds in the displayed image. Press 'Esc' button when done.  
---> The output segmented image by each of the algorithms: Ford Fulkerson, Edmonds Karp, Capacity Scaling, and Dinic's algorithm will be shown one after another. To close each output window press 'Q' key.
+--> The output segmented image by each of the algorithms: Ford Fulkerson, Edmonds Karp, Capacity Scaling, and Dinic's algorithm will be shown one after another. To close each output window press 'Q' key.  
 --> After this, all details including plots will be displayed in a final GUI.
 
 ## Purpose  
